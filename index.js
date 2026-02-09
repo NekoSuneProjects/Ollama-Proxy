@@ -49,12 +49,7 @@ app.use("/api", (req, res, next) => {
     ws: true,
     proxyTimeout: 0,
     timeout: 0,
-    logLevel: "silent",
-
-    // 🔥 THIS IS THE KEY FIX
-    pathRewrite: {
-      "^/": "/api/"
-    }
+    logLevel: "silent"
   })(req, res, next);
 });
 
