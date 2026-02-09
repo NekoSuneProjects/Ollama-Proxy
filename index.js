@@ -33,7 +33,7 @@ setInterval(checkNodes, 5000);
 checkNodes();
 
 /* ------------------ OLLAMA API PROXY ------------------ */
-app.use("/api", (req, res, next) => {
+app.use("/", (req, res, next) => {
   if (activeNodes.length === 0) {
     return res.status(503).json({ error: "No Ollama nodes available" });
   }
