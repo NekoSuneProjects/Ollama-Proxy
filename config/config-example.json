@@ -1,0 +1,5 @@
+[
+  "http://ollama-node1:11434",
+  "http://ollama-node2:11434",
+  "http://ollama-node3:11434"
+]
