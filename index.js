@@ -46,10 +46,15 @@ app.use("/api", (req, res, next) => {
   return createProxyMiddleware({
     target,
     changeOrigin: true,
-    ws: true,              // supports streaming
-    proxyTimeout: 0,       // long-running requests
+    ws: true,
+    proxyTimeout: 0,
     timeout: 0,
-    logLevel: "silent"
+    logLevel: "silent",
+
+    // 🔥 THIS IS THE KEY FIX
+    pathRewrite: {
+      "^/": "/api/"
+    }
   })(req, res, next);
 });
 
