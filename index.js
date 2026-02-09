@@ -34,159 +34,23 @@ async function checkNodes() {
 setInterval(checkNodes, 5000);
 checkNodes();
 
-/* ------------------ GPT-LIKE MODEL LIST ------------------ */
-app.get("/api/models", async (req, res) => {
+/* ------------------ CATCH-ALL OLLAMA API PROXY ------------------ */
+app.use("/api", (req, res, next) => {
   if (activeNodes.length === 0) {
     return res.status(503).json({ error: "No Ollama nodes available" });
   }
-
-  try {
-    const results = await Promise.allSettled(
-      activeNodes.map(async (node) => {
-        const { data } = await axios.get(`${node}/api/tags`, {
-          timeout: 5000
-        });
-        return { node, models: data.models };
-      })
-    );
-
-    const modelMap = new Map();
-
-    for (const r of results) {
-      if (r.status !== "fulfilled") continue;
-
-      for (const model of r.value.models) {
-        if (!modelMap.has(model.name)) {
-          modelMap.set(model.name, {
-            name: model.name,
-            size: model.size,
-            digest: model.digest,
-            modified_at: model.modified_at,
-            nodes: []
-          });
-        }
-        modelMap.get(model.name).nodes.push(r.value.node);
-      }
-    }
-
-    res.json({
-      models: Array.from(modelMap.values())
-    });
-
-  } catch (err) {
-    res.status(500).json({
-      error: "Failed to list models",
-      details: err.message
-    });
-  }
-});
-
-/* ------------------ GPT-LIKE GENERATE (WITH SYSTEM PROMPT) ------------------ */
-app.post("/api/generate", async (req, res) => {
-  if (activeNodes.length === 0) {
-    return res.status(503).json({ error: "No Ollama nodes available" });
-  }
-
-  const {
-    model,
-    system,
-    prompt,
-    stream = false,
-    options = {}
-  } = req.body;
-
-  if (!model || !prompt) {
-    return res.status(400).json({
-      error: "model and prompt are required"
-    });
-  }
-
-  // Build final prompt
-  const finalPrompt = system
-    ? `[System]\n${system}\n\n[User]\n${prompt}`
-    : prompt;
 
   const target = activeNodes[rrIndex % activeNodes.length];
   rrIndex++;
 
-  try {
-    const response = await axios.post(
-      `${target}/api/generate`,
-      {
-        model,
-        prompt: finalPrompt,
-        stream,
-        options
-      },
-      {
-        responseType: stream ? "stream" : "json",
-        timeout: 0
-      }
-    );
-
-    if (stream) {
-      res.setHeader("Content-Type", "application/json");
-      response.data.pipe(res);
-      return;
-    }
-
-    res.json({
-      model: response.data.model,
-      response: response.data.response,
-      done: response.data.done
-    });
-
-  } catch (err) {
-    res.status(500).json({
-      error: "Generation failed",
-      details: err.message
-    });
-  }
-});
-
-/* ------------------ ADMIN: PULL MODEL ON ALL NODES ------------------ */
-app.post("/api/pull", async (req, res) => {
-  const { name } = req.body;
-
-  if (!name) {
-    return res.status(400).json({ error: "Missing model name" });
-  }
-
-  if (activeNodes.length === 0) {
-    return res.status(503).json({ error: "No active Ollama nodes" });
-  }
-
-  console.log(`📦 Pulling model "${name}" on all active nodes...`);
-
-  const results = await Promise.allSettled(
-    activeNodes.map(async (node) => {
-      const response = await axios.post(
-        `${node}/api/pull`,
-        { name },
-        { timeout: 0 } // pulls can take a long time
-      );
-
-      return {
-        node,
-        status: "ok",
-        response: response.data
-      };
-    })
-  );
-
-  const summary = results.map((r, i) => {
-    if (r.status === "fulfilled") return r.value;
-    return {
-      node: activeNodes[i],
-      status: "error",
-      error: r.reason.message
-    };
-  });
-
-  res.json({
-    model: name,
-    nodes: summary
-  });
+  return createProxyMiddleware({
+    target,
+    changeOrigin: true,
+    ws: true,              // supports streaming
+    proxyTimeout: 0,       // long-running requests
+    timeout: 0,
+    logLevel: "silent"
+  })(req, res, next);
 });
 
 /* ------------------ NORMAL PROXY ------------------ */
