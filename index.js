@@ -69,6 +69,6 @@ app.use((req, res, next) => {
 });
 
 /* ------------------ START ------------------ */
-app.listen(11435, () => {
-  console.log("🟢 Ollama proxy running on http://localhost:11435");
+app.listen(11434, () => {
+  console.log("🟢 Ollama proxy running on http://localhost:11434");
 });
