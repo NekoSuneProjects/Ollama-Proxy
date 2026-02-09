@@ -1,12 +1,10 @@
 import express from "express";
 import axios from "axios";
 import { createProxyMiddleware } from "http-proxy-middleware";
+import NODES from "./config/config.json" assert { type: "json" };
 
 const app = express();
 app.use(express.json());
-
-// 👇 Ollama nodes
-import NODES from "./config/config.json" assert { type: "json" };
 
 let activeNodes = [];
 let rrIndex = 0;
@@ -34,7 +32,7 @@ async function checkNodes() {
 setInterval(checkNodes, 5000);
 checkNodes();
 
-/* ------------------ CATCH-ALL OLLAMA API PROXY ------------------ */
+/* ------------------ OLLAMA API PROXY ------------------ */
 app.use("/api", (req, res, next) => {
   if (activeNodes.length === 0) {
     return res.status(503).json({ error: "No Ollama nodes available" });
@@ -48,23 +46,7 @@ app.use("/api", (req, res, next) => {
     changeOrigin: true,
     ws: true,
     proxyTimeout: 0,
-    timeout: 0,
-    logLevel: "silent"
-  })(req, res, next);
-});
-
-/* ------------------ NORMAL PROXY ------------------ */
-app.use((req, res, next) => {
-  if (activeNodes.length === 0) {
-    return res.status(503).json({ error: "No Ollama nodes available" });
-  }
-
-  const target = activeNodes[rrIndex % activeNodes.length];
-  rrIndex++;
-
-  return createProxyMiddleware({
-    target,
-    changeOrigin: true
+    timeout: 0
   })(req, res, next);
 });
 
